@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Kral’ın Zombi Avı – PC & Mobil 🧟‍♂️</title>
+<title>Kral’ın Zombi Avcısı – PC & Mobil 🧟‍♂️</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
   canvas { display:block; margin:0 auto; background:radial-gradient(circle at center,#050505 0%,#000 100%); }
@@ -57,11 +57,14 @@ const restartBtn = document.getElementById("restartBtn");
 const DEV_CODE = "7536";
 
 let gameStarted=false, paused=false;
-let zombies=[], bullets=[], bloods=[], flashes=[];
+let zombies=[], bullets=[], bloods=[];
 let score=0, highScore=0;
 let playerX = canvas.width/2;
 let bossActive=false, boss=null, bossForced=false, bossSpawnedOnce=false;
 let bulletSpeed=8, godMode=false;
+
+// PC veya mobil kontrol
+let isPC = !("ontouchstart" in window);
 
 // Mobil dokunmatik kontrol
 let touchX = null;
@@ -69,11 +72,14 @@ canvas.addEventListener("touchstart",(e)=>{ touchX = e.touches[0].clientX; bulle
 canvas.addEventListener("touchmove",(e)=>{ touchX = e.touches[0].clientX; });
 canvas.addEventListener("touchend",(e)=>{ touchX = null; });
 
-// Klavye kontrolleri (PC)
+// PC fare ile hareket ve tıklama ile ateş
+if(isPC){
+  canvas.addEventListener("mousemove", (e) => { playerX = e.clientX; });
+  canvas.addEventListener("click", (e) => { bullets.push({x:playerX,y:canvas.height-60,speed:bulletSpeed}); });
+}
+
+// Klavye kontrolleri sadece duraklatma ve yeniden başlatma
 document.addEventListener("keydown",(e)=>{
-  if(e.key==="ArrowLeft") playerX-=15;
-  if(e.key==="ArrowRight") playerX+=15;
-  if(e.key===" ") bullets.push({x:playerX,y:canvas.height-60,speed:bulletSpeed});
   if(e.key==="Escape" && gameStarted){ paused=!paused; resumeBtn.style.display=paused?"block":"none"; restartBtn.style.display=paused?"block":"none"; }
 });
 
@@ -144,7 +150,7 @@ function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle="black"; ctx.fillRect(0,0,canvas.width,canvas.height);
   drawFog();
-  if(touchX!==null) playerX=touchX;
+  if(touchX!==null && !isPC) playerX=touchX; // sadece mobilde
   ctx.fillStyle="gray"; ctx.fillRect(playerX-10,canvas.height-50,20,50);
 
   bullets.forEach((b,i)=>{ b.y-=b.speed; ctx.fillStyle="yellow"; ctx.fillRect(b.x-2,b.y,4,10); if(b.y<0) bullets.splice(i,1); });
@@ -159,9 +165,7 @@ function loop(){
           bloods.push({x:z.x+20,y:z.y+20,time:Date.now()});
           if(z.health<=0){
             z.hit=true;
-            if(z.isBoss){ 
-              bossActive=false; // Boss öldü
-            }
+            if(z.isBoss){ bossActive=false; }
           }
         }
       });
@@ -198,3 +202,4 @@ function gameOver(){
 </script>
 </body>
 </html>
+
