@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Kral’ın Zombi Avcısı – PC & Mobil 🧟‍♂️</title>
+<title>Kral’ın Zombi Avcısı – Gelişmiş 🧟‍♂️</title>
 <style>
   body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
   canvas { display:block; margin:0 auto; background:radial-gradient(circle at center,#050505 0%,#000 100%); }
@@ -16,6 +16,7 @@
   #resumeBtn:hover, #restartBtn:hover { background:darkred; }
   #resumeBtn { top:40%; }
   #restartBtn { top:50%; }
+  #buffs { position:absolute; top:90px; left:20px; color:white; font-size:16px; }
 </style>
 </head>
 <body>
@@ -33,6 +34,7 @@
 <button id="togglePanelBtn">Paneli Göster/Gizle</button>
 <button id="resumeBtn">Devam Et ▶️</button>
 <button id="restartBtn">Yeniden Başlat 🔁</button>
+<div id="buffs"></div>
 
 <canvas id="gameCanvas"></canvas>
 
@@ -53,55 +55,51 @@ const godModeBtn = document.getElementById("godModeBtn");
 const togglePanelBtn = document.getElementById("togglePanelBtn");
 const resumeBtn = document.getElementById("resumeBtn");
 const restartBtn = document.getElementById("restartBtn");
+const buffsDiv = document.getElementById("buffs");
 
 const DEV_CODE = "7536";
 
 let gameStarted=false, paused=false;
 let zombies=[], bullets=[], bloods=[];
-let score=0, highScore=0;
+let score=0, highScore=localStorage.getItem("highScore")||0;
 let playerX = canvas.width/2;
 let bossActive=false, boss=null, bossForced=false, bossSpawnedOnce=false;
 let bulletSpeed=8, godMode=false;
-
-// PC veya mobil kontrol
+let buffs={speed: false, power: false, invincible: false};
 let isPC = !("ontouchstart" in window);
-
-// Mobil dokunmatik kontrol
 let touchX = null;
+
+// Mobil dokunmatik
 canvas.addEventListener("touchstart",(e)=>{ touchX = e.touches[0].clientX; bullets.push({x:touchX,y:canvas.height-60,speed:bulletSpeed}); });
 canvas.addEventListener("touchmove",(e)=>{ touchX = e.touches[0].clientX; });
 canvas.addEventListener("touchend",(e)=>{ touchX = null; });
 
-// PC fare ile hareket ve tıklama ile ateş
+// PC fare
 if(isPC){
   canvas.addEventListener("mousemove", (e) => { playerX = e.clientX; });
   canvas.addEventListener("click", (e) => { bullets.push({x:playerX,y:canvas.height-60,speed:bulletSpeed}); });
 }
 
-// Klavye kontrolleri sadece duraklatma ve yeniden başlatma
+// ESC tuşu pause
 document.addEventListener("keydown",(e)=>{
   if(e.key==="Escape" && gameStarted){ paused=!paused; resumeBtn.style.display=paused?"block":"none"; restartBtn.style.display=paused?"block":"none"; }
 });
 
 class Zombie{
-  constructor(x,y,speed,isBoss=false){
+  constructor(x,y,speed,isBoss=false, mini=false){
     this.x=x; this.y=y; this.width=isBoss?150:50; this.height=isBoss?200:80;
     this.speed=speed; this.alpha=0; this.hit=false;
-    this.health=isBoss?20:1; this.maxHealth=this.health;
-    this.isBoss=isBoss; this.direction=Math.random()<0.5?-1:1; this.walkOffset=0;
+    this.health=isBoss?20: mini?5:1; this.maxHealth=this.health;
+    this.isBoss=isBoss; this.mini=mini; this.direction=Math.random()<0.5?-1:1; this.walkOffset=0;
   }
   update(){ this.y+=this.speed; if(!this.isBoss) this.x+=Math.sin(this.walkOffset)*this.direction; this.walkOffset+=0.1; }
   draw(){
     if(this.alpha<1)this.alpha+=0.02;
     ctx.globalAlpha=this.alpha;
-    ctx.fillStyle=this.hit?"darkred":(this.isBoss?"purple":"green");
+    ctx.fillStyle=this.hit?"darkred":(this.isBoss?"purple":(this.mini?"orange":"green"));
     ctx.fillRect(this.x,this.y,this.width,this.height);
-    ctx.fillStyle=this.hit?"#400":"#7cff7c";
-    ctx.beginPath();
-    ctx.arc(this.x+this.width/2,this.y-(this.isBoss?50:10),this.isBoss?50:20,0,Math.PI*2);
-    ctx.fill();
     ctx.globalAlpha=1;
-    if(this.isBoss){
+    if(this.isBoss || this.mini){
       const barWidth=300, barHeight=25, barX=canvas.width/2-barWidth/2, barY=20;
       const healthPercent=this.health/this.maxHealth;
       ctx.fillStyle="gray"; ctx.fillRect(barX,barY,barWidth,barHeight);
@@ -119,11 +117,10 @@ function drawFog(){
   ctx.fillStyle=grad; ctx.fillRect(0,0,canvas.width,canvas.height);
 }
 
-// Başlat ve panel işlemleri
 startBtn.addEventListener("click",()=>{
   startBtn.style.display="none"; devPanel.style.display="block";
   gameStarted=true; paused=false; score=0; bossSpawnedOnce=false;
-  zombies=[]; bullets=[]; bloods=[]; bossActive=false; boss=null;
+  zombies=[]; bullets=[]; bloods=[]; bossActive=false; boss=null; buffs={speed:false,power:false,invincible:false};
   loop();
 });
 
@@ -136,53 +133,64 @@ unlockBtn.addEventListener("click",()=>{
 devPass.addEventListener("keydown", (e) => { if(e.key==="Enter") unlockBtn.click(); });
 
 spawnBossBtn.addEventListener("click",()=>{ if(!bossActive){ spawnBoss(); bossForced=true; } });
-godModeBtn.addEventListener("click",()=>{ godMode=!godMode; alert("Ölümsüzlük "+(godMode?"aktif!":"kapalı!")); });
+godModeBtn.addEventListener("click",()=>{ buffs.invincible=!buffs.invincible; alert("Ölümsüzlük "+(buffs.invincible?"aktif!":"kapalı!")); updateBuffDisplay(); });
 togglePanelBtn.addEventListener("click",()=>{ devPanel.style.display=(devPanel.style.display==="none"?"block":"none"); });
-
 resumeBtn.addEventListener("click",()=>{ paused=false; resumeBtn.style.display="none"; restartBtn.style.display="none"; loop(); });
 restartBtn.addEventListener("click",()=>{ paused=false; resumeBtn.style.display="none"; restartBtn.style.display="none"; startBtn.style.display="block"; startBtn.textContent="🎮 Oyunu Başlat"; gameStarted=false; bossActive=false; bossForced=false; bossSpawnedOnce=false; });
 
-function spawnZombie(){ if(!bossActive) zombies.push(new Zombie(Math.random()*(canvas.width-80),-100,1+Math.random()*1.2)); }
-function spawnBoss(){ bossActive=true; boss=new Zombie(canvas.width/2-75,-250,0.5,true); zombies.push(boss); }
+function spawnZombie(mini=false){ 
+  if(!bossActive) zombies.push(new Zombie(Math.random()*(canvas.width-80),-100,1+Math.random()*1.2, false, mini)); 
+}
+function spawnBoss(mini=false){ bossActive=true; boss=new Zombie(canvas.width/2-75,-250,0.5,true,mini); zombies.push(boss); }
+
+function applyBuff(type, duration){
+  buffs[type]=true;
+  updateBuffDisplay();
+  setTimeout(()=>{ buffs[type]=false; updateBuffDisplay(); }, duration);
+}
+function updateBuffDisplay(){
+  let text="Buffs: ";
+  for(let key in buffs){ if(buffs[key]) text+=key+" "; }
+  buffsDiv.textContent=text;
+}
 
 function loop(){
   if(!gameStarted || paused) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.fillStyle="black"; ctx.fillRect(0,0,canvas.width,canvas.height);
   drawFog();
-  if(touchX!==null && !isPC) playerX=touchX; // sadece mobilde
+
+  if(touchX!==null && !isPC) playerX=touchX;
   ctx.fillStyle="gray"; ctx.fillRect(playerX-10,canvas.height-50,20,50);
 
-  bullets.forEach((b,i)=>{ b.y-=b.speed; ctx.fillStyle="yellow"; ctx.fillRect(b.x-2,b.y,4,10); if(b.y<0) bullets.splice(i,1); });
+  let speedMultiplier=buffs.speed?2:1;
+  bullets.forEach((b,i)=>{ b.y-=b.speed*(buffs.power?2:1); ctx.fillStyle="yellow"; ctx.fillRect(b.x-2,b.y,4,10); if(b.y<0) bullets.splice(i,1); });
 
   zombies.forEach((z,zi)=>{
     if(!z.hit){
       z.update(); z.draw();
       bullets.forEach((b,bi)=>{
         if(b.x>z.x && b.x<z.x+z.width && b.y<z.y+z.height && b.y>z.y){
-          z.health--; bullets.splice(bi,1);
+          z.health-=buffs.power?2:1; bullets.splice(bi,1);
           score+=z.isBoss?5:10;
-          bloods.push({x:z.x+20,y:z.y+20,time:Date.now()});
           if(z.health<=0){
             z.hit=true;
             if(z.isBoss){ bossActive=false; }
           }
         }
       });
-      if(z.y+z.height>=canvas.height && !godMode) gameOver();
+      if(z.y+z.height>=canvas.height && !buffs.invincible) gameOver();
     }
   });
 
   const now=Date.now();
-  bloods=bloods.filter(b=>now-b.time<600);
-  bloods.forEach(b=>{ ctx.fillStyle=`rgba(255,0,0,${1-(now-b.time)/600})`; ctx.beginPath(); ctx.arc(b.x,b.y,20,0,Math.PI*2); ctx.fill(); });
+  ctx.fillStyle="white"; ctx.font="24px Arial"; 
+  ctx.fillText("Skor: "+score,20,30); 
+  ctx.fillText("En Yüksek Skor: "+highScore,20,60);
 
-  ctx.fillStyle="white"; ctx.font="24px Arial"; ctx.fillText("Skor: "+score,20,30); ctx.fillText("En Yüksek Skor: "+highScore,20,60);
-
-  // 500 puana ulaşıldığında boss spawn, ama sadece bir kez
-  if(score>=500 && !bossActive && !bossForced && !bossSpawnedOnce){
-      spawnBoss(); bossSpawnedOnce=true;
-  }
+  // Her 500 puanda mini-boss / boss spawn
+  if(score>=500 && !bossSpawnedOnce){ spawnZombie(true); bossSpawnedOnce=true; applyBuff('speed',10000); applyBuff('power',10000); }
+  if(score>=1000 && !bossForced){ spawnBoss(); bossForced=true; applyBuff('invincible',10000); }
 
   if(!bossActive && Math.random()<0.02) spawnZombie();
 
@@ -191,7 +199,7 @@ function loop(){
 
 function gameOver(){
   gameStarted=false;
-  if(score>highScore) highScore=score;
+  if(score>highScore){ highScore=score; localStorage.setItem("highScore",score); }
   ctx.fillStyle="red"; ctx.font="48px Arial";
   ctx.fillText("💀 Kaybettin Kral 💀",canvas.width/2-200,canvas.height/2);
   setTimeout(()=>{
@@ -202,3 +210,4 @@ function gameOver(){
 </script>
 </body>
 </html>
+
