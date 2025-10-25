@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Kral’ın Zombi Avcısı – Gelişmiş 🧟‍♂️</title>
+<title>Kral’ın Zombi Avcısı – Kanlı Savaş 🧟‍♂️</title>
 <style>
-  body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
-  canvas { display:block; margin:0 auto; background:radial-gradient(circle at center,#050505 0%,#000 100%); }
-  #startBtn { position:absolute; top:15%; left:50%; transform:translateX(-50%); font-size:28px; background:crimson; color:white; border:none; padding:20px 40px; border-radius:15px; cursor:pointer; }
-  #startBtn:hover { background:darkred; }
-  #devPanel { position:absolute; bottom:80px; right:20px; background:#222; color:white; padding:10px; border-radius:10px; text-align:center; font-size:14px; display:none; }
-  #devPanel input, #devPanel button { font-size:14px; margin:3px; padding:5px; border-radius:5px; }
-  #togglePanelBtn { position:absolute; bottom:20px; right:20px; padding:10px; border-radius:8px; background:#444; color:white; border:none; font-size:16px; cursor:pointer; }
-  #resumeBtn, #restartBtn { display:none; position:absolute; left:50%; transform:translateX(-50%); font-size:24px; padding:15px 30px; border-radius:10px; border:none; cursor:pointer; background:crimson; color:white; }
-  #resumeBtn:hover, #restartBtn:hover { background:darkred; }
-  #resumeBtn { top:40%; }
-  #restartBtn { top:50%; }
-  #buffs { position:absolute; top:90px; left:20px; color:white; font-size:16px; }
+body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
+canvas { display:block; margin:0 auto; background:radial-gradient(circle at center,#050505 0%,#000 100%); }
+#startBtn { position:absolute; top:15%; left:50%; transform:translateX(-50%); font-size:28px; background:crimson; color:white; border:none; padding:20px 40px; border-radius:15px; cursor:pointer; }
+#startBtn:hover { background:darkred; }
+#devPanel { position:absolute; bottom:80px; right:20px; background:#222; color:white; padding:10px; border-radius:10px; text-align:center; font-size:14px; display:none; }
+#devPanel input, #devPanel button { font-size:14px; margin:3px; padding:5px; border-radius:5px; }
+#togglePanelBtn { position:absolute; bottom:20px; right:20px; padding:10px; border-radius:8px; background:#444; color:white; border:none; font-size:16px; cursor:pointer; }
+#resumeBtn, #restartBtn { display:none; position:absolute; left:50%; transform:translateX(-50%); font-size:24px; padding:15px 30px; border-radius:10px; border:none; cursor:pointer; background:crimson; color:white; }
+#resumeBtn:hover, #restartBtn:hover { background:darkred; }
+#resumeBtn { top:40%; }
+#restartBtn { top:50%; }
+#buffs { position:absolute; top:90px; left:20px; color:white; font-size:16px; }
 </style>
 </head>
 <body>
@@ -39,66 +39,63 @@
 <canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resizeCanvas);
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+function resizeCanvas(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
-const startBtn = document.getElementById("startBtn");
-const devPanel = document.getElementById("devPanel");
-const devPass = document.getElementById("devPass");
-const unlockBtn = document.getElementById("unlockBtn");
-const spawnBossBtn = document.getElementById("spawnBossBtn");
-const godModeBtn = document.getElementById("godModeBtn");
-const togglePanelBtn = document.getElementById("togglePanelBtn");
-const resumeBtn = document.getElementById("resumeBtn");
-const restartBtn = document.getElementById("restartBtn");
-const buffsDiv = document.getElementById("buffs");
+const startBtn=document.getElementById("startBtn");
+const devPanel=document.getElementById("devPanel");
+const devPass=document.getElementById("devPass");
+const unlockBtn=document.getElementById("unlockBtn");
+const spawnBossBtn=document.getElementById("spawnBossBtn");
+const godModeBtn=document.getElementById("godModeBtn");
+const togglePanelBtn=document.getElementById("togglePanelBtn");
+const resumeBtn=document.getElementById("resumeBtn");
+const restartBtn=document.getElementById("restartBtn");
+const buffsDiv=document.getElementById("buffs");
 
-const DEV_CODE = "7536";
-
-let gameStarted=false, paused=false;
-let zombies=[], bullets=[], bloods=[];
-let score=0, highScore=localStorage.getItem("highScore")||0;
-let playerX = canvas.width/2;
-let bossActive=false, boss=null, bossForced=false, bossSpawnedOnce=false;
-let bulletSpeed=8, godMode=false;
-let buffs={speed: false, power: false, invincible: false};
-let isPC = !("ontouchstart" in window);
-let touchX = null;
+const DEV_CODE="7536";
+let gameStarted=false,paused=false;
+let zombies=[],bullets=[],bloods=[];
+let score=0,highScore=localStorage.getItem("highScore")||0;
+let playerX=canvas.width/2;
+let bossActive=false,boss=null,bossForced=false,bossSpawnedOnce=false;
+let bulletSpeed=8,buffs={speed:false,power:false,invincible:false};
+let isPC=!("ontouchstart" in window);
+let touchX=null;
 
 // Mobil dokunmatik
-canvas.addEventListener("touchstart",(e)=>{ touchX = e.touches[0].clientX; bullets.push({x:touchX,y:canvas.height-60,speed:bulletSpeed}); });
-canvas.addEventListener("touchmove",(e)=>{ touchX = e.touches[0].clientX; });
-canvas.addEventListener("touchend",(e)=>{ touchX = null; });
+canvas.addEventListener("touchstart",(e)=>{ touchX=e.touches[0].clientX; bullets.push({x:touchX,y:canvas.height-60,speed:bulletSpeed}); });
+canvas.addEventListener("touchmove",(e)=>{ touchX=e.touches[0].clientX; });
+canvas.addEventListener("touchend",(e)=>{ touchX=null; });
 
 // PC fare
-if(isPC){
-  canvas.addEventListener("mousemove", (e) => { playerX = e.clientX; });
-  canvas.addEventListener("click", (e) => { bullets.push({x:playerX,y:canvas.height-60,speed:bulletSpeed}); });
-}
+if(isPC){canvas.addEventListener("mousemove",(e)=>{playerX=e.clientX;}); canvas.addEventListener("click",(e)=>{bullets.push({x:playerX,y:canvas.height-60,speed:bulletSpeed});});}
 
-// ESC tuşu pause
-document.addEventListener("keydown",(e)=>{
-  if(e.key==="Escape" && gameStarted){ paused=!paused; resumeBtn.style.display=paused?"block":"none"; restartBtn.style.display=paused?"block":"none"; }
-});
+// ESC pause
+document.addEventListener("keydown",(e)=>{if(e.key==="Escape"&&gameStarted){paused=!paused;resumeBtn.style.display=paused?"block":"none";restartBtn.style.display=paused?"block":"none";}});
 
 class Zombie{
-  constructor(x,y,speed,isBoss=false, mini=false){
-    this.x=x; this.y=y; this.width=isBoss?150:50; this.height=isBoss?200:80;
-    this.speed=speed; this.alpha=0; this.hit=false;
-    this.health=isBoss?20: mini?5:1; this.maxHealth=this.health;
-    this.isBoss=isBoss; this.mini=mini; this.direction=Math.random()<0.5?-1:1; this.walkOffset=0;
+  constructor(x,y,speed,isBoss=false,mini=false){
+    this.x=x;this.y=y;this.width=isBoss?150:50;this.height=isBoss?200:80;
+    this.speed=speed;this.alpha=0;this.hit=false;this.health=isBoss?20:mini?5:1;this.maxHealth=this.health;
+    this.isBoss=isBoss;this.mini=mini;this.direction=Math.random()<0.5?-1:1;this.walkOffset=0;
   }
-  update(){ this.y+=this.speed; if(!this.isBoss) this.x+=Math.sin(this.walkOffset)*this.direction; this.walkOffset+=0.1; }
+  update(){this.y+=this.speed;if(!this.isBoss)this.x+=Math.sin(this.walkOffset)*this.direction;this.walkOffset+=0.1;}
   draw(){
     if(this.alpha<1)this.alpha+=0.02;
     ctx.globalAlpha=this.alpha;
+    // Zombi gövde
     ctx.fillStyle=this.hit?"darkred":(this.isBoss?"purple":(this.mini?"orange":"green"));
     ctx.fillRect(this.x,this.y,this.width,this.height);
-    ctx.globalAlpha=1;
+    // Zombi kafası
+    ctx.fillStyle="black";
+    ctx.beginPath();
+    ctx.arc(this.x+this.width/2,this.y-10,this.width/4,0,Math.PI*2);
+    ctx.fill();
+    // Boss sağlık barı
     if(this.isBoss || this.mini){
       const barWidth=300, barHeight=25, barX=canvas.width/2-barWidth/2, barY=20;
       const healthPercent=this.health/this.maxHealth;
@@ -106,6 +103,7 @@ class Zombie{
       ctx.fillStyle="red"; ctx.fillRect(barX,barY,barWidth*healthPercent,barHeight);
       ctx.strokeStyle="white"; ctx.strokeRect(barX,barY,barWidth,barHeight);
     }
+    ctx.globalAlpha=1;
   }
 }
 
@@ -125,34 +123,22 @@ startBtn.addEventListener("click",()=>{
 });
 
 unlockBtn.addEventListener("click",()=>{
-  if(devPass.value===DEV_CODE){
-    spawnBossBtn.disabled=false; godModeBtn.disabled=false;
-    alert("Yapımcı girişi başarılı!");
-  } else { alert("Şifre yanlış!"); }
+  if(devPass.value===DEV_CODE){spawnBossBtn.disabled=false; godModeBtn.disabled=false; alert("Yapımcı girişi başarılı!");} 
+  else {alert("Şifre yanlış!");}
 });
-devPass.addEventListener("keydown", (e) => { if(e.key==="Enter") unlockBtn.click(); });
+devPass.addEventListener("keydown",(e)=>{if(e.key==="Enter") unlockBtn.click();});
 
-spawnBossBtn.addEventListener("click",()=>{ if(!bossActive){ spawnBoss(); bossForced=true; } });
-godModeBtn.addEventListener("click",()=>{ buffs.invincible=!buffs.invincible; alert("Ölümsüzlük "+(buffs.invincible?"aktif!":"kapalı!")); updateBuffDisplay(); });
-togglePanelBtn.addEventListener("click",()=>{ devPanel.style.display=(devPanel.style.display==="none"?"block":"none"); });
-resumeBtn.addEventListener("click",()=>{ paused=false; resumeBtn.style.display="none"; restartBtn.style.display="none"; loop(); });
-restartBtn.addEventListener("click",()=>{ paused=false; resumeBtn.style.display="none"; restartBtn.style.display="none"; startBtn.style.display="block"; startBtn.textContent="🎮 Oyunu Başlat"; gameStarted=false; bossActive=false; bossForced=false; bossSpawnedOnce=false; });
+spawnBossBtn.addEventListener("click",()=>{if(!bossActive){spawnBoss();bossForced=true;}});
+godModeBtn.addEventListener("click",()=>{buffs.invincible=!buffs.invincible;alert("Ölümsüzlük "+(buffs.invincible?"aktif!":"kapalı!"));updateBuffDisplay();});
+togglePanelBtn.addEventListener("click",()=>{devPanel.style.display=(devPanel.style.display==="none"?"block":"none");});
+resumeBtn.addEventListener("click",()=>{paused=false;resumeBtn.style.display="none";restartBtn.style.display="none";loop();});
+restartBtn.addEventListener("click",()=>{paused=false;resumeBtn.style.display="none";restartBtn.style.display="none";startBtn.style.display="block";startBtn.textContent="🎮 Oyunu Başlat";gameStarted=false;bossActive=false;bossForced=false;bossSpawnedOnce=false;});
 
-function spawnZombie(mini=false){ 
-  if(!bossActive) zombies.push(new Zombie(Math.random()*(canvas.width-80),-100,1+Math.random()*1.2, false, mini)); 
-}
-function spawnBoss(mini=false){ bossActive=true; boss=new Zombie(canvas.width/2-75,-250,0.5,true,mini); zombies.push(boss); }
+function spawnZombie(mini=false){if(!bossActive) zombies.push(new Zombie(Math.random()*(canvas.width-80),-100,1+Math.random()*1.2,false,mini));}
+function spawnBoss(mini=false){bossActive=true;boss=new Zombie(canvas.width/2-75,-250,0.5,true,mini);zombies.push(boss);}
 
-function applyBuff(type, duration){
-  buffs[type]=true;
-  updateBuffDisplay();
-  setTimeout(()=>{ buffs[type]=false; updateBuffDisplay(); }, duration);
-}
-function updateBuffDisplay(){
-  let text="Buffs: ";
-  for(let key in buffs){ if(buffs[key]) text+=key+" "; }
-  buffsDiv.textContent=text;
-}
+function applyBuff(type,duration){buffs[type]=true;updateBuffDisplay();setTimeout(()=>{buffs[type]=false;updateBuffDisplay();},duration);}
+function updateBuffDisplay(){let text="Buffs: ";for(let key in buffs){if(buffs[key]) text+=key+" ";} buffsDiv.textContent=text;}
 
 function loop(){
   if(!gameStarted || paused) return;
@@ -163,8 +149,7 @@ function loop(){
   if(touchX!==null && !isPC) playerX=touchX;
   ctx.fillStyle="gray"; ctx.fillRect(playerX-10,canvas.height-50,20,50);
 
-  let speedMultiplier=buffs.speed?2:1;
-  bullets.forEach((b,i)=>{ b.y-=b.speed*(buffs.power?2:1); ctx.fillStyle="yellow"; ctx.fillRect(b.x-2,b.y,4,10); if(b.y<0) bullets.splice(i,1); });
+  bullets.forEach((b,i)=>{b.y-=b.speed*(buffs.power?2:1);ctx.fillStyle="yellow";ctx.fillRect(b.x-2,b.y,4,10);if(b.y<0) bullets.splice(i,1);});
 
   zombies.forEach((z,zi)=>{
     if(!z.hit){
@@ -173,15 +158,16 @@ function loop(){
         if(b.x>z.x && b.x<z.x+z.width && b.y<z.y+z.height && b.y>z.y){
           z.health-=buffs.power?2:1; bullets.splice(bi,1);
           score+=z.isBoss?5:10;
-          if(z.health<=0){
-            z.hit=true;
-            if(z.isBoss){ bossActive=false; }
-          }
+          bloods.push({x:b.x,y:b.y,alpha:1});
+          if(z.health<=0){z.hit=true;if(z.isBoss){bossActive=false;}}
         }
       });
       if(z.y+z.height>=canvas.height && !buffs.invincible) gameOver();
     }
   });
+
+  // Kan efektleri
+  bloods.forEach((blood,i)=>{ctx.fillStyle=`rgba(200,0,0,${blood.alpha})`;ctx.fillRect(blood.x-5,blood.y-5,10,10);blood.alpha-=0.02;if(blood.alpha<=0) bloods.splice(i,1);});
 
   const now=Date.now();
   ctx.fillStyle="white"; ctx.font="24px Arial"; 
@@ -202,10 +188,7 @@ function gameOver(){
   if(score>highScore){ highScore=score; localStorage.setItem("highScore",score); }
   ctx.fillStyle="red"; ctx.font="48px Arial";
   ctx.fillText("💀 Kaybettin Kral 💀",canvas.width/2-200,canvas.height/2);
-  setTimeout(()=>{
-    startBtn.style.display="block"; spawnBossBtn.disabled=true; godMode=false; godModeBtn.disabled=true;
-    bossForced=false; bossSpawnedOnce=false; startBtn.textContent="Tekrar Dene 🔁";
-  },1500);
+  setTimeout(()=>{startBtn.style.display="block"; spawnBossBtn.disabled=true; godMode=false; godModeBtn.disabled=true; bossForced=false; bossSpawnedOnce=false; startBtn.textContent="Tekrar Dene 🔁";},1500);
 }
 </script>
 </body>
