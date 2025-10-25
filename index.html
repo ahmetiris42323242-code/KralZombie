@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<title>Kral’ın Zombi Avcısı — Full</title>
+<style>
+  :root{--panel-bg:#222;--btn:#c0392b;--btn-dark:#992523}
+  html,body{height:100%;margin:0;background:#000;font-family:Inter, system-ui, sans-serif;color:#fff}
+  #wrap{height:100%;display:flex;align-items:center;justify-content:center}
+  canvas{display:block;border-radius:12px;background:radial-gradient(circle at center,#050505 0%,#000 100%);max-width:100%;height:auto}
+
+/* UI */
+  #ui {position:fixed; left:20px; bottom:20px; z-index:40; display:flex; flex-direction:column; gap:8px; align-items:flex-start;}
+  #userBox { background:rgba(0,0,0,0.6); padding:8px 10px; border-radius:8px; }
+  #userLabel{font-size:14px;margin:0}
+  #buffs{margin-top:4px;font-size:13px;color:#9ef}
+  #topInfoBox { background:rgba(0,0,0,0.6); padding:8px 10px; border-radius:8px; margin-top:6px; text-align:left; }
+  #topInfo{font-size:14px;color:#ddd}
+
+/* Start/login */
+  #startScreen{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(rgba(0,0,0,0.6),rgba(0,0,0,0.6));z-index:50;
+  }
+  #loginBox{background:#111;padding:18px;border-radius:12px;width:320px;box-shadow:0 8px 30px rgba(0,0,0,0.7);text-align:center}
+  #loginBox h2{margin:0 0 12px 0}
+  #loginBox input{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #333;background:#000;color:#fff}
+  #loginBox button{width:48%;margin:6px 1%;padding:10px;border-radius:8px;border:none;background:var(--btn);color:#fff;font-weight:700;cursor:pointer}
+  #loginBox small{display:block;margin-top:6px;color:#bbb}
+
+/* dev panel */
+  #devPanel{position:fixed;right:18px;bottom:90px;background:var(--panel-bg);padding:10px;border-radius:10px;z-index:30;display:none}
+  #devPanel input{width:110px;padding:6px;border-radius:6px;border:1px solid #333;background:#000;color:#fff;margin:4px}
+  #devPanel button{padding:6px 8px;margin:4px;border-radius:6px;border:none;background:var(--btn);color:#fff;cursor:pointer}
+  #togglePanelBtn{position:fixed;right:18px;bottom:20px;padding:10px;border-radius:8px;border:none;background:#444;color:#fff;z-index:30;cursor:pointer}
+
+/* pause menu */
+  #pauseMenu{position:fixed;left:50%;top:30%;transform:translate(-50%,0);background:rgba(0,0,0,0.85);padding:18px;border-radius:12px;display:none;z-index:60;text-align:center}
+  #pauseMenu button{display:block;width:220px;margin:8px auto;padding:12px;border-radius:8px;border:none;background:var(--btn);color:#fff;cursor:pointer}
+  #pauseMenu .label{color:#fff;margin-bottom:8px;font-weight:700}
+
+/* leaderboard modal */
+  #leaderboardModal{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:70}
+  #lbBox{background:#0f0f11;padding:16px;border-radius:10px;width:320px;max-height:80vh;overflow:auto}
+  #lbBox h3{margin:0 0 8px 0}
+  #lbList{margin:10px 0;padding:0;list-style:none}
+  #lbList li{padding:6px;border-bottom:1px solid #222;display:flex;justify-content:space-between}
+  #lbClose{margin-top:8px;padding:8px 10px;border-radius:8px;border:none;background:var(--btn);color:#fff;cursor:pointer}
+
+  /* small top labels */
+  #topInfo{font-size:14px;color:#ddd; z-index:30}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="gameCanvas"></canvas>
+</div>
+
+<!-- UI left-bottom: user, buffs, then global high -->
+<div id="ui">
+  <div id="userBox">
+    <div id="userLabel">Kullanıcı: <span id="currentUser">—</span></div>
+    <div id="buffs">Buffs: -</div>
+  </div>
+  <div id="topInfoBox">
+    <div id="topInfo">En Yüksek Skor: <span id="globalHigh">0</span></div>
+  </div>
+</div>
+
+<!-- Dev panel -->
+<div id="devPanel">
+  <div style="font-weight:700;margin-bottom:6px">Yapımcı Paneli</div>
+  <input id="devPass" placeholder="Şifre" type="password" maxlength="10" />
+  <button id="unlockBtn">Giriş</button><br>
+  <button id="spawnBossBtn" disabled>Boss’u Çağır</button>
+  <button id="spawnMiniBossBtn" disabled>Mini-Boss’u Çağır</button>
+  <button id="godModeBtn" disabled>Ölümsüzlük</button>
+</div>
+<button id="togglePanelBtn">Paneli Göster/Gizle</button>
+
+<!-- Pause Menu -->
+<div id="pauseMenu">
+  <div class="label">Oyun Duraklatıldı</div>
+  <button id="resumeBtn">Devam Et ▶️</button>
+  <button id="restartBtn">Yeniden Başlat 🔁</button>
+  <div style="margin-top:8px;font-size:13px;color:#fff;margin-bottom:6px">Liderlik Tablosu</div>
+  <button id="openLBBtn" style="background:#2d6fb2">Liderlik Tablosu</button>
+</div>
+
+<!-- Leaderboard Modal -->
+<div id="leaderboardModal">
+  <div id="lbBox">
+    <h3>Liderlik Tablosu</h3>
+    <ol id="lbList"></ol>
+    <button id="lbClose">Kapat</button>
+  </div>
+</div>
+
+<!-- Start / Login screen -->
+<div id="startScreen">
+  <div id="loginBox">
+    <h2>Kral’ın Zombi Avı</h2>
+    <input id="username" placeholder="Kullanıcı adı" />
+    <input id="password" type="password" placeholder="Şifre" />
+    <div style="margin-top:8px">
+      <button id="btnLogin">Giriş Yap</button>
+      <button id="btnRegister">Kayıt Ol</button>
+    </div>
+    <small>Hesabın varsa giriş, yoksa kayıt ol. Skorlar hesabına kaydedilir.</small>
+  </div>
+</div>
+
+<script>
+/* ---------- Genel ayarlar ve DOM ---------- */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+function fitCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', fitCanvas); fitCanvas();
+
+const startScreen = document.getElementById('startScreen');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
+const btnLogin = document.getElementById('btnLogin');
+const btnRegister = document.getElementById('btnRegister');
+
+const currentUserSpan = document.getElementById('currentUser');
+const buffsDiv = document.getElementById('buffs');
+const topInfo = document.getElementById('globalHigh');
+
+const devPanel = document.getElementById('devPanel');
+const devPass = document.getElementById('devPass');
+const unlockBtn = document.getElementById('unlockBtn');
+const spawnBossBtn = document.getElementById('spawnBossBtn');
+const spawnMiniBossBtn = document.getElementById('spawnMiniBossBtn');
+const godModeBtn = document.getElementById('godModeBtn');
+const togglePanelBtn = document.getElementById('togglePanelBtn');
+
+const pauseMenu = document.getElementById('pauseMenu');
+const resumeBtn = document.getElementById('resumeBtn');
+const restartBtn = document.getElementById('restartBtn');
+const openLBBtn = document.getElementById('openLBBtn');
+
+const leaderboardModal = document.getElementById('leaderboardModal');
+const lbList = document.getElementById('lbList');
+const lbClose = document.getElementById('lbClose');
+
+/* ---------- Kullanıcı / Leaderboard (localStorage tabanlı) ---------- */
+const STORAGE_KEY = 'kral_zombi_users_v1';
+function loadUserDB(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {users:{}}; }catch(e){ return {users:{}}; } }
+function saveUserDB(db){ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+let userDB = loadUserDB();
+let currentUser = null;
+function setCurrentUser(name){
+  currentUser = name;
+  currentUserSpan.textContent = name || '—';
+  updateGlobalHigh();
+}
+function updateGlobalHigh(){
+  const arr = Object.entries(userDB.users).map(([u,o])=>({user:u,score:o.highScore||0}));
+  arr.sort((a,b)=>b.score-a.score);
+  topInfo.textContent = arr.length? arr[0].score : 0;
+}
+
+/* register/login */
+btnRegister.addEventListener('click', ()=>{
+  const u = usernameInput.value.trim();
+  const p = passwordInput.value;
+  if(!u || !p){ alert('kullanıcı adı ve şifre gir.'); return; }
+  if(userDB.users[u]){ alert('bu kullanıcı zaten var.'); return; }
+  userDB.users[u] = { password: p, highScore: 0 };
+  saveUserDB(userDB);
+  alert('kayıt başarılı — şimdi giriş yapabilirsin.');
+});
+
+btnLogin.addEventListener('click', ()=>{
+  const u = usernameInput.value.trim();
+  const p = passwordInput.value;
+  if(!u || !p){ alert('kullanıcı adı ve şifre gir.'); return; }
+  const rec = userDB.users[u];
+  if(!rec || rec.password !== p){ alert('giriş başarısız — kullanıcı veya şifre hatalı.'); return; }
+  setCurrentUser(u);
+  startScreen.style.display = 'none';
+  if(!('highScore' in rec)) rec.highScore = 0;
+  saveUserDB(userDB);
+  startGameForCurrentUser();
+});
+usernameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') passwordInput.focus(); });
+passwordInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') btnLogin.click(); });
+
+/* ---------- Oyun mantığı ---------- */
+let gameStarted = false;
+let paused = false;
+let zombies = [], bullets = [], bloods = [], flashes = [];
+let score = 0;
+let playerX = canvas.width/2;
+let bossActive = false, boss = null, bossForced = false, bossSpawnedOnce = false;
+let bulletSpeed = 8;
+let buffs = {speed:false,power:false,invincible:false};
+const DEV_CODE = '7536';
+let isPC = !('ontouchstart' in window);
+let touchX = null;
+
+/* input: mobile touch and PC mouse (move + click) */
+if(isPC){
+  canvas.addEventListener('mousemove', e=>{ playerX = e.clientX; });
+  canvas.addEventListener('click', e=>{ if(gameStarted && !paused) bullets.push({x:playerX,y:canvas.height-60,speed:bulletSpeed}); });
+} else {
+  canvas.addEventListener('touchstart', e=>{ touchX = e.touches[0].clientX; if(gameStarted && !paused) bullets.push({x:touchX,y:canvas.height-60,speed:bulletSpeed}); });
+  canvas.addEventListener('touchmove', e=>{ touchX = e.touches[0].clientX; });
+  canvas.addEventListener('touchend', e=>{ touchX = null; });
+}
+
+/* ESC pause handling */
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && gameStarted){
+    paused = !paused;
+    pauseMenu.style.display = paused ? 'block' : 'none';
+  }
+});
+resumeBtn.addEventListener('click', ()=>{ paused=false; pauseMenu.style.display='none'; loop(); });
+restartBtn.addEventListener('click', ()=>{ resetToStart(); });
+openLBBtn.addEventListener('click', ()=>{ showLeaderboard(); });
+lbClose.addEventListener('click', ()=>{ leaderboardModal.style.display = 'none'; });
+
+/* dev panel toggle */
+togglePanelBtn.addEventListener('click', ()=>{ devPanel.style.display = devPanel.style.display==='none' ? 'block' : 'none'; });
+unlockBtn.addEventListener('click', ()=>{ 
+  if(devPass.value === DEV_CODE){
+    spawnBossBtn.disabled = false;
+    spawnMiniBossBtn.disabled = false;
+    godModeBtn.disabled = false;
+    alert('Yapımcı erişimi açıldı.');
+  } else alert('şifre yanlış');
+});
+devPass.addEventListener('keydown', e=>{ if(e.key==='Enter') unlockBtn.click(); });
+spawnBossBtn.addEventListener('click', ()=>{ if(!bossActive){ spawnBoss(false); bossForced=true; } });
+spawnMiniBossBtn.addEventListener('click', ()=>{ if(!bossActive){ spawnBoss(true); bossForced=true; } });
+godModeBtn.addEventListener('click', ()=>{ buffs.invincible = !buffs.invincible; updateBuffDisplay(); alert('Ölümsüzlük ' + (buffs.invincible? 'aktif' : 'kapalı')); });
+
+/* classes and spawn */
+class Zombie {
+  constructor(x,y,speed,isBoss=false,mini=false){
+    this.x = x; this.y = y;
+    this.width = isBoss ? 150 : 50;
+    this.height = isBoss ? 200 : 80;
+    this.speed = speed;
+    this.alpha = 0;
+    this.hit = false;
+    this.mini = mini;
+    this.isBoss = isBoss;
+    this.health = isBoss ? 20 : (mini ? 5 : 1);
+    this.maxHealth = this.health;
+    this.direction = Math.random()<0.5 ? -1 : 1;
+    this.walkOffset = 0;
+  }
+  update(){ this.y += this.speed; if(!this.isBoss) this.x += Math.sin(this.walkOffset) * this.direction; this.walkOffset += 0.1; }
+  draw(){
+    if(this.alpha < 1) this.alpha += 0.02;
+    ctx.globalAlpha = this.alpha;
+    ctx.fillStyle = this.hit ? 'darkred' : (this.isBoss ? 'purple' : (this.mini ? 'orange' : 'green'));
+    ctx.fillRect(this.x, this.y, this.width, this.height);
+    const headRadius = this.width/2;
+    const headX = this.x + this.width/2;
+    const headY = this.y - headRadius/2;
+    ctx.fillStyle = 'yellow';
+    ctx.beginPath(); ctx.arc(headX, headY, headRadius, 0, Math.PI*2); ctx.fill();
+    if(this.isBoss || this.mini){
+      const barWidth = 300, barHeight = 22, barX = canvas.width/2 - barWidth/2, barY = 18;
+      const hp = Math.max(0, this.health / this.maxHealth);
+      ctx.fillStyle = 'gray'; ctx.fillRect(barX, barY, barWidth, barHeight);
+      ctx.fillStyle = 'red'; ctx.fillRect(barX, barY, barWidth * hp, barHeight);
+      ctx.strokeStyle = '#fff'; ctx.strokeRect(barX, barY, barWidth, barHeight);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+function spawnZombie(mini=false){ if(!bossActive) zombies.push(new Zombie(Math.random()*(canvas.width-80), -100, 0.4 + Math.random()*0.3, false, mini)); } // hız azaltıldı
+function spawnBoss(mini=false){ bossActive = true; boss = new Zombie(canvas.width/2 - 75, -250, 0.4, true, mini); zombies.push(boss); }
+function applyBuff(type, durationMs){ buffs[type] = true; updateBuffDisplay(); setTimeout(()=>{ buffs[type] = false; updateBuffDisplay(); }, durationMs); }
+function updateBuffDisplay(){ const active = Object.keys(buffs).filter(k=>buffs[k]); buffsDiv.textContent = 'Buffs: ' + (active.length? active.join(' | ') : '-'); }
+function addBlood(x,y,radius){ bloods.push({x,y,radius,alpha:1}); }
+function addFlash(x,y){ flashes.push({x,y,alpha:1,time:Date.now()}); }
+
+/* main loop */
+function loop(){
+  if(!gameStarted || paused) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+  grad.addColorStop(0,'rgba(255,255,255,0.02)');
+  grad.addColorStop(0.5,'rgba(0,0,0,0.4)');
+  grad.addColorStop(1,'rgba(0,0,0,0.9)');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  if(touchX !== null && !isPC) playerX = touchX;
+  ctx.fillStyle = '#999';
+  ctx.fillRect(playerX - 12, canvas.height - 60, 24, 50);
+
+  bullets.forEach((b,i)=>{
+    b.y -= b.speed * (buffs.power ? 2 : 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fillRect(b.x-3, b.y-6, 6, 14);
+    if(b.y < -20) bullets.splice(i,1);
+  });
+
+  zombies.forEach((z, zi) => {
+    if(z.hit) return;
+    z.update();
+    z.draw();
+    const headR = z.width/2;
+    const headX = z.x + z.width/2;
+    const headY = z.y - headR/2;
+    bullets.forEach((b, bi)=>{
+      const dx = b.x - headX; const dy = b.y - headY; const d = Math.hypot(dx, dy);
+      if(d < headR){
+        const dmg = buffs.power ? 2 : 1;
+        z.health -= dmg;
+        bullets.splice(bi,1);
+        addBlood(headX, headY, headR);
+        addFlash(headX, headY);
+        score += z.isBoss ? 5 : 10;
+        if(z.health <= 0){ z.hit = true; if(z.isBoss) bossActive = false; }
+      }
+    });
+    if(z.y + z.height >= canvas.height && !buffs.invincible){ gameOver(); }
+  });
+
+  bloods.forEach((blood, i) => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, blood.alpha);
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(blood.x, blood.y, blood.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    blood.alpha -= 0.03;
+    if (blood.alpha <= 0) bloods.splice(i, 1);
+  });
+
+  flashes.forEach((f, i) => {
+    const life = (Date.now() - f.time) / 200;
+    if (life > 1) { flashes.splice(i, 1); return; }
+    ctx.save();
+    ctx.globalAlpha = 1 - life;
+    const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.radius || 60);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.6, 'rgba(255,255,255,0.2)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.radius || 60, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+
+  ctx.fillStyle = 'white';
+  ctx.font = '22px Arial';
+  ctx.fillText('Skor: ' + score, 20, 32);
+  const userHigh = currentUser && userDB.users[currentUser] ? userDB.users[currentUser].highScore || 0 : 0;
+  ctx.fillText('Senin En Yüksek: ' + userHigh, 20, 60);
+
+  if(score >= 500 && !bossSpawnedOnce){
+    spawnZombie(true);
+    bossSpawnedOnce = true;
+    applyBuff('speed', 10000);
+    applyBuff('power', 10000);
+  }
+  if(score >= 1000 && !bossForced){
+    spawnBoss(false);
+    bossForced = true;
+    applyBuff('invincible', 10000);
+  }
+  if(!bossActive && Math.random() < 0.02) spawnZombie();
+  requestAnimationFrame(loop);
+}
+
+/* game over / reset / start helpers */
+function gameOver(){
+  gameStarted = false;
+  if(currentUser){
+    const rec = userDB.users[currentUser];
+    if(!rec.highScore || score > rec.highScore){
+      rec.highScore = score;
+      saveUserDB(userDB);
+      updateGlobalHigh();
+    }
+  }
+  ctx.fillStyle = 'red';
+  ctx.font = '48px Arial';
+  ctx.fillText('💀 Kaybettin Kral 💀', canvas.width/2 - 230, canvas.height/2);
+  setTimeout(()=>{ resetToStart(); }, 1400);
+}
+function resetToStart(){
+  gameStarted = false; paused = false; zombies = []; bullets = []; bloods = []; flashes = []; score = 0;
+  bossActive = false; bossForced = false; bossSpawnedOnce = false;
+  startScreen.style.display = 'flex'; pauseMenu.style.display = 'none';
+}
+function startGameForCurrentUser(){
+  if(!currentUser){ alert('Önce giriş yapmalısın.'); return; }
+  gameStarted = true; paused = false; zombies = []; bullets = []; bloods = []; flashes = []; score = 0;
+  bossActive = false; bossForced = false; bossSpawnedOnce = false; playerX = canvas.width/2;
+  if(!('highScore' in userDB.users[currentUser])) userDB.users[currentUser].highScore = 0;
+  saveUserDB(userDB); updateGlobalHigh(); loop();
+}
+
+/* leaderboard */
+function showLeaderboard(){
+  const arr = Object.entries(userDB.users).map(([u,o])=>({user:u,score:o.highScore||0}));
+  arr.sort((a,b)=>b.score - a.score);
+  lbList.innerHTML = '';
+  if(arr.length === 0){
+    const li = document.createElement('li'); li.textContent = 'Kayitli oyuncu yok.'; lbList.appendChild(li);
+  } else {
+    arr.slice(0,50).forEach((it)=>{ const li = document.createElement('li'); li.innerHTML = `<span>${escapeHtml(it.user)}</span><strong>${it.score}</strong>`; lbList.appendChild(li); });
+  }
+  leaderboardModal.style.display = 'flex';
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* save/load user DB (from top) */
+function loadUserDB2(){ try{ const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {users:{}}; }catch(e){ return {users:{}}; } }
+userDB = loadUserDB2();
+
+/* hook login to startGame (update login handler) */
+btnLogin.removeEventListener('click', ()=>{});
+btnLogin.addEventListener('click', ()=>{
+  const u = usernameInput.value.trim(); const p = passwordInput.value;
+  if(!u || !p){ alert('kullanıcı adı ve şifre gir.'); return; }
+  const rec = userDB.users[u];
+  if(!rec || rec.password !== p){ alert('giriş başarısız — kullanıcı veya şifre hatalı.'); return; }
+  setCurrentUser(u); startScreen.style.display = 'none'; startGameForCurrentUser();
+});
+
+/* keep register */
+btnRegister.removeEventListener('click', ()=>{});
+btnRegister.addEventListener('click', ()=>{
+  const u = usernameInput.value.trim(); const p = passwordInput.value;
+  if(!u || !p){ alert('kullanıcı adı ve şifre gir.'); return; }
+  if(userDB.users[u]){ alert('bu kullanıcı zaten var.'); return; }
+  userDB.users[u] = { password: p, highScore: 0 }; saveUserDB(userDB); alert('kayıt başarılı — şimdi giriş yapabilirsin.');
+});
+
+/* extra small UX */
+openLBBtn.addEventListener('click', ()=>{ pauseMenu.style.display='none'; showLeaderboard(); });
+lbClose.addEventListener('click', ()=>{ leaderboardModal.style.display='none'; if(gameStarted && paused) pauseMenu.style.display='block'; });
+
+updateGlobalHigh(); updateBuffDisplay();
+currentUserSpan.textContent = currentUser || '—';
+
+/* auto spawn timer */
+setInterval(()=>{ if(gameStarted && !paused) { if(Math.random()<0.6) spawnZombie(); } }, 1600);
+
+/* expose some dev helpers on window for quick testing (optional) */
+window.__spawnBoss = ()=>spawnBoss(false);
+window.__spawnMini = ()=>spawnBoss(true);
+</script>
+</body>
+</html>
